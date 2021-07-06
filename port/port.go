@@ -14,8 +14,8 @@ import (
 )
 
 type PortScanner struct {
-	hostname string
-	lock     *semaphore.Weighted
+	Hostname string
+	Lock     *semaphore.Weighted
 }
 
 type ScanResult struct {
@@ -44,20 +44,25 @@ func ScanPort(hostname string, port int, timeout time.Duration) ScanResult {
 	return result
 }
 
-func (ps *PortScanner) Start(f, l int, timeout time.Duration) {
+func (ps *PortScanner) Start(f, l int, timeout time.Duration) []ScanResult {
+
+	var results []ScanResult
+
 	waitGroup := sync.WaitGroup{}
 	defer waitGroup.Wait()
 
 	for port := f; port <= l; port++ {
 		waitGroup.Add(1)
-		ps.lock.Acquire(context.TODO(), 1)
+		ps.Lock.Acquire(context.TODO(), 1)
 
 		go func(port int) {
-			defer ps.lock.Release(1)
+			defer ps.Lock.Release(1)
 			defer waitGroup.Done()
-			ScanPort(ps.hostname, port, timeout)
+			results = append(results, ScanPort(ps.Hostname, port, timeout))
 		}(port)
 	}
+
+	return results
 }
 
 func Ulimit() int64 {
@@ -65,9 +70,10 @@ func Ulimit() int64 {
 	if err != nil {
 		panic(err)
 	}
-	s := strings.TrimSpace(string(out))
-	i, err := strconv.ParseInt(s, 10, 64)
 
+	s := strings.TrimSpace(string(out))
+
+	i, err := strconv.ParseInt(s, 10, 64)
 	if err != nil {
 		panic(err)
 	}
